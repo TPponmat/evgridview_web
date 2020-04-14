@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.2.1/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 650px;
+        width: 40%;
+      }
+      
+    </style>
+    <title>MAP Visualize EV GridView</title>
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.2.1/build/ol.js"></script>
+    <!-- <script src="https://code.jquery.com/jquery-2.2.3.min.js"></script> -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+   
+</head>
+
+<body>
+    <h2>Grid View Map</h2>
+
+    <div class="row">
+        <div class="col-sm-4" >
+            <div class="input-group mb-3">
+                <div>
+                <select class="custom-select" id="area_selector">
+                <option selected>Choose Area </option>
+                <option value="C1">กฟก.๑</option>
+                <option value="C2">กฟก.๒</option>
+                <option value="C3">กฟก.๓</option>
+                </select>
+                <select class="custom-select" id="office_selector" onchange="callback_aoj();">
+                    <option selected>Choose Office </option>
+                    <option value="0806101">กฟฟ. พัทยา</option>
+                    <option value="2">กฟฟ. บ้านบึง</option>
+                    <option value="3">กฟฟ. ชลบุรี</option>
+                </select>
+                </div>
+            </div>
+
+        </div>
+        <div class="col-sm-4" >
+
+                <label for="fname">PEA NO : </label>:</label><br>
+                <input type="text" id="peano" name="peano">
+                <button onclick="query_peano();">Click me</button>
+
+
+        </div>
+        <div class="col-sm-4" >
+            
+            <label for="year">Choose Year : </label>
+            <select id="year" onchange="handleCallback(this)">
+                <option value=0> 2563 </option>
+                <option value=1> 2564 </option>
+                <option value=2> 2565 </option>
+                <option value=3> 2566 </option>
+                <option value=4> 2567 </option>
+            </select>
+
+        </div>
+    </div>
+    <div class="row-mt-5">
+        <br>
+        <div id="map" class="map"><div id="popup"></div></div>
+    </div>
+    
+    <script type="text/javascript">
+        
+        var style_aoj = new ol.style.Style({ //Style Object for AOJ Polygon
+            fill: new ol.style.Fill({
+            color: 'rgba(0, 8, 2, 0.6)'
+            }),
+            stroke: new ol.style.Stroke({
+            color: '#78DFA7',
+            width: 2
+            }),
+            
+        });
+
+        function zoom_to_polygon(geo_json){
+            //console.log(JSON.parse(geo_json["data"]));
+            let geojsonObject = JSON.parse(geo_json["data"]); // Parse AOJ Object to GeoJSON
+            let centroid_aoj = geo_json["coordinate_cent"];
+            var point_to_plot = JSON.parse(geo_json["point"]);
+            console.log(point_to_plot[0]["peano"])
+            /* Function Below not complete */
+            var features = new ol.format.GeoJSON().readFeatures(geojsonObject);
+            //console.log(JSON.parse(point_to_plot[0])["coordinates"])
+            features.forEach(function(feature){ feature.setId(undefined) });
+            features.forEach(function(feature){ console.log(feature)});
+            var aoj_layer = new ol.layer.Vector({
+                source: new ol.source.Vector({
+                    features: features
+                }),
+                style: style_aoj
+            });
+            e
+            map.addLayer(aoj_layer)
+            map.setView(new ol.View({
+                center: ol.proj.fromLonLat([parseFloat(centroid_aoj[0]), parseFloat(centroid_aoj[1])]),
+                zoom: 14, 
+            }));
+
+            let inx;
+            for(inx =0; inx < Object.keys(point_to_plot).length ; inx++){
+                let peano_label = point_to_plot[inx]["peano"];
+                let ratekva = point_to_plot[inx]["ratekva"];
+                let feederid = point_to_plot[inx]["feederid"];
+                let latitude = point_to_plot[inx]["coordinate"][0][1];
+                let longitude = point_to_plot[inx]["coordinate"][0][0];
+                //console.log(label)
+                //let point_tr_in_aoj = JSON.parse(point_to_plot[inx])["coordinates"]
+                plotMarker(latitude, longitude, peano_label , "default");
+            
+            }
+
+        };
+        
+        function callback_aoj(){ //Function execute when change dropdown list office
+            let aoj = document.getElementById("office_selector").value;
+            console.log(aoj)
+            if (aoj=="0806101"){
+                console.log("Good")
+                // Create Request to get AOJ and Zoom to
+                var url = "http://localhost:8000/aoj_select/";
+                var method = "GET";
+                var getData = "code="+JSON.stringify(aoj)
+                var shouldBeAsync = true;
+                var request = new XMLHttpRequest();
+                request.onload = function () {
+                    var status = request.status; // HTTP response status, e.g., 200 for "200 OK"
+                    var data = request.responseText; // Returned data, e.g., an HTML document.
+                    let data_out = JSON.parse(data)
+                    //console.log(data_out) //data out is GeoJson
+                    zoom_to_polygon(data_out);
+
+                };
+                request.open(method, url+"?"+getData, shouldBeAsync);
+                request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                request.send();
+
+            }
+        }; // End Function zoom to AOJ Centroid
+
+        function query_peano(){ // Search PEANO from textbox ; Change to click on table view later.
+            var peano = document.getElementById("peano");
+            //console.log(peano.value)
+
+            var url = "http://localhost:8000/show/";
+            var method = "POST";
+            var postData = "data="+peano.value;
+            var shouldBeAsync = true;
+            var request = new XMLHttpRequest();
+            request.onload = function () {
+
+                var status = request.status; // HTTP response status, e.g., 200 for "200 OK"
+                var data = request.responseText; // Returned data, e.g., an HTML document.
+                var data_json = JSON.parse(data);
+                var output = data_json["data"][0];
+    
+                map_redraw(output);
+
+            };
+            request.open(method, url, shouldBeAsync);
+            request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            request.send(postData);
+            
+        };
+
+        var extend;
+        function map_redraw(output_ags){ // Redraw Map after get search result.
+            console.log(output_ags)
+            let coordinate = output_ags["coordinate"];
+            let peano = output_ags["peano"];
+
+            map.setView(new ol.View({ // Zoom to and set coordinate to Center of map.
+                center: ol.proj.fromLonLat([parseFloat(coordinate[1]), parseFloat(coordinate[0])]),
+                zoom: 15,
+            }));
+            
+            extend = map.getView().calculateExtent();
+            let box = ol.proj.transformExtent(extend,'EPSG:3857','EPSG:4326');
+            filter_feat_req(box); // send Extend of Map
+
+            plotMarker(coordinate[0], coordinate[1], peano, "green");
+
+        };
+
+        function filter_feat_req(box){ // Function Send bbox extend coordinate to Backend for query.
+            // request to geoDjango to query point that fit in to bounding
+            console.log(box)
+            var url = "http://localhost:8000/query/";
+            var method = "GET";
+            var getData = "extend="+JSON.stringify(box)
+            var shouldBeAsync = true;
+            var request = new XMLHttpRequest();
+            request.onload = function () {
+
+                var status = request.status; // HTTP response status, e.g., 200 for "200 OK"
+                var data = request.responseText; // Returned data, e.g., an HTML document.
+                let data_out = JSON.parse(data)
+                console.log(data_out)
+
+            };
+            request.open(method, url+"?"+getData, shouldBeAsync);
+            request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            request.send();
+        
+        };// End function
+
+        var markerSourceGreen = new ol.source.Vector();
+        var markerSourceYellow = new ol.source.Vector();
+        var markerSourceRed = new ol.source.Vector();
+        var markerSourceDefault = new ol.source.Vector();
+        var aojSource = new ol.source.Vector();
+
+        var markerStyleRed = new ol.style.Style({
+            image: new ol.style.Icon(({
+                opacity: 1,
+                scale: 0.6,
+                src: "{% static 'icons/red.png' %}"
+            }))
+        });
+        
+        var markerStyleYellow = new ol.style.Style({
+            image: new ol.style.Icon(({
+                opacity: 1,
+                scale: 0.6,
+                src: "{% static 'icons/yellow.png' %}"
+            }))
+        });
+
+        var markerStyleGreen = new ol.style.Style({
+            image: new ol.style.Icon(({
+                opacity: 1,
+                scale: 0.6,
+                src: "{% static 'icons/green.png' %}"
+            }))
+        });
+
+        var markerStyleDefault = new ol.style.Style({
+            image: new ol.style.Icon(({
+                opacity: 1,
+                scale: 0.6,
+                src: "{% static 'icons/default.png' %}"
+            }))
+        });
+
+        var vectorLayerGreen = new ol.layer.Vector({
+            source: markerSourceGreen,
+            style: markerStyleGreen,
+        });
+
+        var vectorLayerYellow = new ol.layer.Vector({
+            source: markerSourceYellow,
+            style: markerStyleYellow,
+        });
+
+        var vectorLayerRed = new ol.layer.Vector({
+            source: markerSourceRed,
+            style: markerStyleRed,
+        });
+
+        var vectorLayerDefault = new ol.layer.Vector({
+            source: markerSourceDefault,
+            style: markerStyleDefault,
+        });
+
+
+        var map_layer = new ol.layer.Tile({
+            source: new ol.source.OSM(),
+        });
+
+        var map_view = new ol.View({
+        center: ol.proj.fromLonLat([parseFloat(100.558621), parseFloat(13.852020)]),
+        zoom: 5,
+        });
+
+        //Declare Map Object
+        var map = new ol.Map({
+        target: 'map',
+        layers: [map_layer, vectorLayerGreen, vectorLayerYellow, vectorLayerRed, vectorLayerDefault,],
+        view: map_view,
+        });  //End of map Object
+
+    
+        var element = document.getElementById('popup');
+        var popup = new ol.Overlay({
+            element: element,
+            positioning: 'bottom-center',
+            stopEvent: false,
+            offset: [0, -10]
+        });
+  
+        map.addOverlay(popup);
+        map.on('click', function(evt) {
+        var feature = map.forEachFeatureAtPixel(evt.pixel,
+        function(feature) {
+            return feature;
+        });
+        if (feature) {
+                    var coordinates = feature.getGeometry().getCoordinates();
+                    popup.setPosition(coordinates);
+                    $(element).popover({
+                        placement: 'top',
+                        html: true,
+                        content: feature.get('pea')
+                    });
+                    $(element).popover('show');
+        } else {
+                    $(element).popover('destroy');
+        }
+        });
+        
+        function plotMarker(lat, lon, pea, color){ //Function for plot point feature in vector layer
+            var iconFeature = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.transform([parseFloat(lon), parseFloat(lat)], 'EPSG:4326', 'EPSG:3857')),
+            pea: pea,
+            
+            });
+
+            if(color == 'green'){
+
+            markerSourceGreen.addFeature(iconFeature);
+
+            } else if (color == 'yellow'){
+
+            markerSourceYellow.addFeature(iconFeature);
+
+            } else if (color == 'red'){
+            
+            markerSourceRed.addFeature(iconFeature);
+
+            } else{
+                markerSourceDefault.addFeature(iconFeature);
+            }
+        };
+
+        function handleCallback(){ //Function Call from DropDown list to change year.
+            var x = document.getElementById("year").value;
+            markerSourceGreen.clear()
+            markerSourceYellow.clear()
+            markerSourceRed.clear()
+
+                {% for i in data %}
+
+                    var data = '{{i|escapejs}}'
+                    var lat = '{{i.lat|escapejs}}'
+                    var lon = '{{i.lon|escapejs}}'
+                    var pea = '{{i.peano|escapejs}}'
+                    var risk = '{{i.risk|escapejs}}'
+                    var color = JSON.parse(risk)
+                    plotMarker(lat, lon, pea, color[x])
+
+                {% endfor %}
+
+        }; //End handleCallback Function
+
+        var alltr = [];
+
+        {% for i in data %}
+            //console.log('{{i.lat|escapejs}}');
+            //console.log('{{i.geom|escapejs}}');
+            alltr.push('{{i|escapejs}}')
+            var data = '{{i|escapejs}}'
+            var lat = '{{i.lat|escapejs}}'
+            var lon = '{{i.long|escapejs}}'
+            var pea = '{{i.facilityid|escapejs}}'
+            //var risk = '{{i.risk|escapejs}}'
+            //var color = JSON.parse(risk)
+            //var x = document.getElementById("year").value;
+            plotMarker(lat, lon, pea, "green")
+
+        {% endfor %}
+
+    </script>
+
+</body>
+</html>

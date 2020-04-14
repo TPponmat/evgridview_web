@@ -1,0 +1,23 @@
+{
+    "peano" : "48-555555" ,
+    "number_meter" : 5000 ,
+    "loadProfile_Base" : {
+                        "present" : [24,23,45],  /* Len of list = number of data point */
+                        "one_ahead" : [30, 31, 32],
+                        "two_ahead" : [30, 31, 32],
+                        "there_ahead" : [30, 31, 32],
+                        "four_ahead" : [30, 31, 32],
+                        "five_ahead" : [30, 31, 32]
+
+    },
+    "loadProfile_EV": {
+                        "one_ahead" : [30, 31, 32],
+                        "two_ahead" : [30, 31, 32],
+                        "there_ahead" : [30, 31, 32],
+                        "four_ahead" : [30, 31, 32],
+                        "five_ahead" : [30, 31, 32]
+    },
+    "impact_flag_vector" : [0 , 1 , 1, 2 , 2] /* 0= normal , 1 = Warning, 2 = critical */
+    
+}
+
